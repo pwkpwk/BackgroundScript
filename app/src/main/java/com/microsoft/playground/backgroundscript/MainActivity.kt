@@ -2,9 +2,13 @@ package com.microsoft.playground.backgroundscript
 
 import android.content.Context
 import android.os.Bundle
+import android.view.View
+import android.webkit.JavascriptInterface
 import android.webkit.WebSettings
 import android.webkit.WebView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.databinding.DataBindingUtil
+import com.microsoft.playground.backgroundscript.databinding.ActivityMainBinding
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
@@ -16,13 +20,23 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
         wv = WebView(applicationContext);
         val webSettings: WebSettings = wv.settings
         webSettings.javaScriptEnabled = true
 
-        wv.addJavascriptInterface(ScriptBridge(), "scriptBridge")
+        val model = object: MainViewModel.Model {
+            override fun call() {
+                wv.evaluateJavascript("callBack()", null)
+            }
+        }
+        val viewModel = MainViewModel(model)
+        val binding =
+            DataBindingUtil.setContentView<ActivityMainBinding>(this, R.layout.activity_main)
+        binding.viewModel = viewModel
+        binding.executePendingBindings()
+
+        wv.addJavascriptInterface(Bridge(binding.root, viewModel), "scriptBridge")
         wv.loadDataWithBaseURL(
             "https://teams.microsoft.com",
             loadHtml(applicationContext),
@@ -49,6 +63,21 @@ class MainActivity : AppCompatActivity() {
         }
 
         return builder.toString()
+    }
 
+    private class Bridge(val root: View, val viewModel: MainViewModel) {
+        @JavascriptInterface
+        fun started() {
+            root.post {
+                viewModel.setReady(true)
+            }
+        }
+
+        @JavascriptInterface
+        fun called() {
+            root.post {
+                viewModel.markCalled()
+            }
+        }
     }
 }
