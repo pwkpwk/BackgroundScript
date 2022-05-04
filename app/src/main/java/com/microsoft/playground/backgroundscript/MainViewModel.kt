@@ -21,16 +21,20 @@ class MainViewModel(val model: Model) : BaseObservable() {
     @Bindable
     fun isCalled() : Boolean = called
 
-    fun markCalled() {
+    fun markCalled() : Boolean {
         if (!called) {
             called = true;
             notifyPropertyChanged(BR.called)
             setReady(false)
+            return true
         }
+        return false
     }
 
     fun callScript() {
-        model.call()
+        if (markCalled()) {
+            model.call()
+        }
     }
 
     interface Model {
